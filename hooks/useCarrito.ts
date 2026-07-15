@@ -3,7 +3,6 @@
 import { useState, useCallback } from "react";
 
 export interface ItemCarrito {
-  loteId: number;
   productoId: number;
   nombre: string;
   presentacion: string;
@@ -18,7 +17,7 @@ export function useCarrito() {
 
   const agregar = useCallback((nuevo: ItemCarrito) => {
     setItems((prev) => {
-      const idx = prev.findIndex((i) => i.loteId === nuevo.loteId);
+      const idx = prev.findIndex((i) => i.productoId === nuevo.productoId);
       if (idx !== -1) {
         const nuevaCantidad = prev[idx].cantidad + nuevo.cantidad;
         if (nuevaCantidad > prev[idx].stockDisponible) return prev;
@@ -31,10 +30,10 @@ export function useCarrito() {
   }, []);
 
   const actualizarCantidad = useCallback(
-    (loteId: number, cantidad: number) => {
+    (productoId: number, cantidad: number) => {
       setItems((prev) =>
         prev.map((i) =>
-          i.loteId === loteId
+          i.productoId === productoId
             ? {
                 ...i,
                 cantidad: Math.max(1, Math.min(cantidad, i.stockDisponible)),
@@ -46,8 +45,8 @@ export function useCarrito() {
     []
   );
 
-  const eliminar = useCallback((loteId: number) => {
-    setItems((prev) => prev.filter((i) => i.loteId !== loteId));
+  const eliminar = useCallback((productoId: number) => {
+    setItems((prev) => prev.filter((i) => i.productoId !== productoId));
   }, []);
 
   const limpiar = useCallback(() => setItems([]), []);

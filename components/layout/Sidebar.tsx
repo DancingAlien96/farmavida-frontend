@@ -11,7 +11,6 @@ import {
   Receipt,
   Users,
   Settings,
-  Zap,
   LogOut,
   X,
 } from "lucide-react";
@@ -19,14 +18,14 @@ import { cn } from "@/lib/utils";
 import { clearSession, getUser } from "@/lib/auth";
 import { useEffect, useState } from "react";
 
+// El farmacéutico solo usa el Punto de Venta; todo lo demás es del ADMIN.
 const navItems = [
-  { href: "/dashboard", label: "Tablero", icon: LayoutDashboard },
-  { href: "/dashboard/inventario", label: "Inventario", icon: Package },
-  { href: "/dashboard/compras", label: "Compras", icon: ShoppingBag },
-  { href: "/dashboard/pos", label: "Punto de Venta", icon: ShoppingCart },
-  { href: "/dashboard/ventas", label: "Ventas", icon: Receipt },
-  { href: "/dashboard/clientes", label: "Clientes", icon: Users },
-  // Solo el ADMIN ve Configuración (incluye la gestión de usuarios)
+  { href: "/dashboard", label: "Tablero", icon: LayoutDashboard, adminOnly: true },
+  { href: "/dashboard/inventario", label: "Inventario", icon: Package, adminOnly: true },
+  { href: "/dashboard/compras", label: "Compras", icon: ShoppingBag, adminOnly: true },
+  { href: "/dashboard/pos", label: "Punto de Venta", icon: ShoppingCart, adminOnly: false },
+  { href: "/dashboard/ventas", label: "Ventas", icon: Receipt, adminOnly: true },
+  { href: "/dashboard/clientes", label: "Clientes", icon: Users, adminOnly: true },
   { href: "/dashboard/configuracion", label: "Configuración", icon: Settings, adminOnly: true },
 ];
 
@@ -98,13 +97,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       </nav>
 
       {/* Acciones inferiores */}
-      <div className="px-3 pb-5 space-y-2 border-t border-white/10 pt-4">
-        {/* Nueva Venta rápida */}
-        <button className="w-full flex items-center justify-center gap-2 bg-[#29abe2] hover:bg-[#1e9ad0] transition-colors rounded-lg px-3 py-2.5 text-sm font-semibold text-white shadow-sm">
-          <Zap className="h-4 w-4" />
-          Nueva Venta
-        </button>
-
+      <div className="px-3 pb-5 border-t border-white/10 pt-4">
         {/* Cerrar sesión */}
         <button
           onClick={handleLogout}

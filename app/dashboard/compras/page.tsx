@@ -56,12 +56,7 @@ interface CompraDetalle {
     cantidad: number;
     precioCosto: string;
     subtotal: number;
-    lote: {
-      id: number;
-      nroLote: string;
-      fechaVencimiento: string;
-      producto: { id: number; nombre: string; presentacion: string | null };
-    };
+    producto: { id: number; nombre: string; presentacion: string | null };
   }[];
 }
 
@@ -79,18 +74,17 @@ interface ProductoLista {
 
 interface ItemForm {
   productoId: string;
-  nroLote: string;
   cantidad: string;
-  fechaVencimiento: string;
   precioCosto: string;
+  // Opcional: actualiza la fecha de vencimiento del producto
+  fechaVencimiento: string;
 }
 
 const EMPTY_ITEM: ItemForm = {
   productoId: "",
-  nroLote: "",
   cantidad: "",
-  fechaVencimiento: "",
   precioCosto: "",
+  fechaVencimiento: "",
 };
 
 function estadoBadge(estado: CompraLista["estado"]) {
@@ -211,8 +205,8 @@ export default function ComprasPage() {
       return;
     }
     for (const [i, it] of items.entries()) {
-      if (!it.productoId || !it.nroLote || !it.cantidad || !it.fechaVencimiento || !it.precioCosto) {
-        setError(`Item #${i + 1}: completa todos los campos.`);
+      if (!it.productoId || !it.cantidad || !it.precioCosto) {
+        setError(`Item #${i + 1}: elige el producto e indica cantidad y precio costo.`);
         return;
       }
       if (parseInt(it.cantidad) <= 0) {
@@ -235,10 +229,9 @@ export default function ComprasPage() {
           observacion: observacion || undefined,
           items: items.map((it) => ({
             productoId: parseInt(it.productoId),
-            nroLote: it.nroLote,
             cantidad: parseInt(it.cantidad),
-            fechaVencimiento: it.fechaVencimiento,
             precioCosto: parseFloat(it.precioCosto),
+            fechaVencimiento: it.fechaVencimiento || undefined,
           })),
         }),
       });
@@ -269,7 +262,7 @@ export default function ComprasPage() {
   }
 
   async function anular(id: number) {
-    if (!confirm("¿Anular esta compra? Se restará el stock de los lotes generados.")) return;
+    if (!confirm("¿Anular esta compra? Se restará del stock lo que había entrado con ella.")) return;
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/compras/${id}/anular`,
       {
@@ -511,76 +504,72 @@ export default function ComprasPage() {
                     const subtotal =
                       (parseFloat(it.cantidad) || 0) * (parseFloat(it.precioCosto) || 0);
                     return (
-                      <div key={idx} className="grid grid-cols-12 gap-2 items-start p-3 border border-gray-100 rounded-lg bg-gray-50/50">
-                        <div className="col-span-12 sm:col-span-4">
-                          <label className="text-xs font-medium text-gray-500 mb-1 block">Producto *</label>
-                          <select
-                            value={it.productoId}
-                            onChange={(e) => actualizarItem(idx, "productoId", e.target.value)}
-                            className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#29abe2]/40"
-                          >
-                            <option value="">-- Producto --</option>
-                            {productos.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.nombre}{p.presentacion ? ` · ${p.presentacion}` : ""}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="col-span-6 sm:col-span-2">
-                          <label className="text-xs font-medium text-gray-500 mb-1 block">N° Lote *</label>
-                          <Input
-                            value={it.nroLote}
-                            onChange={(e) => actualizarItem(idx, "nroLote", e.target.value)}
-                            placeholder="LT-..."
-                            className="h-8 text-xs"
-                          />
-                        </div>
-                        <div className="col-span-6 sm:col-span-1">
-                          <label className="text-xs font-medium text-gray-500 mb-1 block">Cant *</label>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={it.cantidad}
-                            onChange={(e) => actualizarItem(idx, "cantidad", e.target.value)}
-                            className="h-8 text-xs"
-                          />
-                        </div>
-                        <div className="col-span-6 sm:col-span-2">
-                          <label className="text-xs font-medium text-gray-500 mb-1 block">Vence *</label>
-                          <Input
-                            type="date"
-                            value={it.fechaVencimiento}
-                            onChange={(e) => actualizarItem(idx, "fechaVencimiento", e.target.value)}
-                            className="h-8 text-xs"
-                          />
-                        </div>
-                        <div className="col-span-5 sm:col-span-2">
-                          <label className="text-xs font-medium text-gray-500 mb-1 block">P. costo *</label>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={it.precioCosto}
-                            onChange={(e) => actualizarItem(idx, "precioCosto", e.target.value)}
-                            placeholder="0.00"
-                            className="h-8 text-xs"
-                          />
-                        </div>
-                        <div className="col-span-1 flex flex-col items-end justify-end pt-5">
+                      <div key={idx} className="p-3 border border-gray-100 rounded-lg bg-gray-50/50">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex-1">
+                            <label className="text-xs font-medium text-gray-500 mb-1 block">Producto *</label>
+                            <select
+                              value={it.productoId}
+                              onChange={(e) => actualizarItem(idx, "productoId", e.target.value)}
+                              className="w-full h-9 px-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#29abe2]/40"
+                            >
+                              <option value="">-- Elegir producto --</option>
+                              {productos.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.nombre}{p.presentacion ? ` · ${p.presentacion}` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                           <Button
                             size="sm"
                             variant="ghost"
                             disabled={items.length === 1}
                             onClick={() => quitarItem(idx)}
-                            className="h-8 w-8 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                            className="h-9 w-9 p-0 mt-5 shrink-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
-                        <div className="col-span-12 text-right text-xs text-gray-500 pr-12">
-                          Subtotal: <span className="font-semibold text-gray-900">Q {subtotal.toFixed(2)}</span>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <div>
+                            <label className="text-xs font-medium text-gray-500 mb-1 block">Cantidad *</label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={it.cantidad}
+                              onChange={(e) => actualizarItem(idx, "cantidad", e.target.value)}
+                              placeholder="0"
+                              className="h-9"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-gray-500 mb-1 block">Precio costo (Q) *</label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={it.precioCosto}
+                              onChange={(e) => actualizarItem(idx, "precioCosto", e.target.value)}
+                              placeholder="0.00"
+                              className="h-9"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-medium text-gray-500 mb-1 block">Vence</label>
+                            <Input
+                              type="date"
+                              value={it.fechaVencimiento}
+                              onChange={(e) => actualizarItem(idx, "fechaVencimiento", e.target.value)}
+                              className="h-9"
+                            />
+                          </div>
                         </div>
+
+                        <p className="text-right text-xs text-gray-500 mt-2">
+                          Subtotal: <span className="font-semibold text-gray-900">Q {subtotal.toFixed(2)}</span>
+                        </p>
                       </div>
                     );
                   })}
@@ -686,8 +675,6 @@ export default function ComprasPage() {
                     <TableHeader>
                       <TableRow className="bg-gray-50">
                         <TableHead className="text-xs font-semibold text-gray-500 uppercase">Producto</TableHead>
-                        <TableHead className="text-xs font-semibold text-gray-500 uppercase">N° Lote</TableHead>
-                        <TableHead className="text-xs font-semibold text-gray-500 uppercase">Vence</TableHead>
                         <TableHead className="text-xs font-semibold text-gray-500 uppercase text-center">Cant.</TableHead>
                         <TableHead className="text-xs font-semibold text-gray-500 uppercase text-right">P. costo</TableHead>
                         <TableHead className="text-xs font-semibold text-gray-500 uppercase text-right">Subtotal</TableHead>
@@ -697,18 +684,10 @@ export default function ComprasPage() {
                       {detalle.detalles.map((d) => (
                         <TableRow key={d.id}>
                           <TableCell>
-                            <p className="font-medium text-gray-900 text-sm">{d.lote.producto.nombre}</p>
-                            {d.lote.producto.presentacion && (
-                              <p className="text-xs text-gray-400">{d.lote.producto.presentacion}</p>
+                            <p className="font-medium text-gray-900 text-sm">{d.producto.nombre}</p>
+                            {d.producto.presentacion && (
+                              <p className="text-xs text-gray-400">{d.producto.presentacion}</p>
                             )}
-                          </TableCell>
-                          <TableCell className="text-sm text-gray-600">{d.lote.nroLote}</TableCell>
-                          <TableCell className="text-sm text-gray-600">
-                            {new Date(d.lote.fechaVencimiento).toLocaleDateString("es-GT", {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                            })}
                           </TableCell>
                           <TableCell className="text-center text-sm font-semibold">{d.cantidad}</TableCell>
                           <TableCell className="text-right text-sm">Q {parseFloat(d.precioCosto).toFixed(2)}</TableCell>

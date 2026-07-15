@@ -28,8 +28,8 @@ interface ProductoApi {
   id: number;
   nombre: string;
   stockMinimo: number;
-  stockTotal: number;
-  categoria: { nombre: string };
+  stock: number;
+  categoria: { nombre: string } | null;
 }
 
 interface VentaApi {
@@ -138,20 +138,20 @@ export default function DashboardPage() {
   const cambioArriba = cambioPct >= 0;
 
   const totalProductos = productos.length;
-  const bajos = productos.filter((p) => p.stockTotal <= p.stockMinimo);
+  const bajos = productos.filter((p) => p.stock <= p.stockMinimo);
   const alertas = bajos.length;
   const enBuenNivel = totalProductos - alertas;
   const saludPct = totalProductos > 0 ? Math.round((enBuenNivel / totalProductos) * 100) : 0;
   const saludLabel = saludPct >= 80 ? "Óptimo" : saludPct >= 50 ? "Aceptable" : "Requiere atención";
 
   const stockCritico = [...bajos]
-    .sort((a, b) => a.stockTotal - b.stockTotal)
+    .sort((a, b) => a.stock - b.stock)
     .slice(0, 5)
     .map((p) => ({
       nombre: p.nombre,
-      categoria: p.categoria.nombre,
-      stock: p.stockTotal,
-      nivel: p.stockTotal <= Math.ceil(p.stockMinimo / 2) ? "critico" : "bajo",
+      categoria: p.categoria?.nombre ?? "Sin categoría",
+      stock: p.stock,
+      nivel: p.stock <= Math.ceil(p.stockMinimo / 2) ? "critico" : "bajo",
     }));
 
   // Gráfico de los últimos 7 días

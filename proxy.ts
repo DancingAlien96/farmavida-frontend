@@ -3,10 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 // Rutas que no requieren autenticación
 const PUBLIC_ROUTES = ["/login"];
 
-// Rutas exclusivas para ciertos roles
-const ROLE_ROUTES: Record<string, string[]> = {
-  "/dashboard/configuracion": ["ADMIN"],
-};
+// El farmacéutico solo puede entrar al Punto de Venta.
+// Todo lo demás del panel es exclusivo del ADMIN.
+const RUTAS_FARMACEUTICO = ["/dashboard/pos"];
+const HOME_FARMACEUTICO = "/dashboard/pos";
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -34,10 +34,14 @@ export function proxy(request: NextRequest) {
   // Verificar restricciones por rol
   try {
     const user = JSON.parse(decodeURIComponent(userCookie));
-    const allowedRoles = ROLE_ROUTES[pathname];
 
-    if (allowedRoles && !allowedRoles.includes(user.rol)) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+    if (user.rol === "FARMACEUTICO") {
+      const permitida = RUTAS_FARMACEUTICO.some(
+        (r) => pathname === r || pathname.startsWith(`${r}/`)
+      );
+      if (!permitida) {
+        return NextResponse.redirect(new URL(HOME_FARMACEUTICO, request.url));
+      }
     }
   } catch {
     // Cookie corrupta — limpiar y redirigir

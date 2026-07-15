@@ -51,7 +51,7 @@ export default function PosPage() {
     cargar();
   }, []);
 
-  // Seleccionar producto -> obtener lote FIFO y agregar al carrito
+  // Seleccionar producto -> agregar al carrito con su stock disponible
   const handleSeleccionar = useCallback(
     async (productoId: number) => {
       try {
@@ -61,23 +61,23 @@ export default function PosPage() {
         );
         const p = await res.json();
 
-        // Lotes ya vienen ordenados por fechaVencimiento asc (FIFO)
-        if (!p.lotes || p.lotes.length === 0) return;
+        if (!p?.id || p.stock < 1) {
+          toast("Ese producto no tiene stock disponible", "error");
+          return;
+        }
 
-        const lote = p.lotes[0];
         const item: ItemCarrito = {
-          loteId: lote.id,
           productoId: p.id,
           nombre: p.nombre,
           presentacion: p.presentacion ?? "",
           imagen: p.imagen ?? null,
           precioUnit: parseFloat(p.precioVenta),
           cantidad: 1,
-          stockDisponible: lote.cantidadActual,
+          stockDisponible: p.stock,
         };
         agregar(item);
       } catch {
-        // silently ignore — user can retry
+        toast("No se pudo agregar el producto", "error");
       }
     },
     [agregar]
@@ -104,7 +104,7 @@ export default function PosPage() {
             metodoPago,
             clienteId: cliente?.id ?? null,
             items: items.map((i) => ({
-              loteId: i.loteId,
+              productoId: i.productoId,
               cantidad: i.cantidad,
             })),
           }),
@@ -202,7 +202,7 @@ export default function PosPage() {
                     <tbody>
                       {items.map((item) => (
                         <ItemCarritoRow
-                          key={item.loteId}
+                          key={item.productoId}
                           item={item}
                           onActualizar={actualizarCantidad}
                           onEliminar={eliminar}

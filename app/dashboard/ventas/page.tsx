@@ -41,7 +41,7 @@ interface DetalleVenta {
   cantidad: number;
   precioUnit: string;
   subtotal: string;
-  lote: { producto: { nombre: string; presentacion: string | null } };
+  producto: { nombre: string; presentacion: string | null };
 }
 
 interface Venta {
@@ -504,9 +504,9 @@ export default function VentasPage() {
                     {detalle.detalles.map((d) => (
                       <tr key={d.id}>
                         <td className="px-3 py-2 text-gray-800">
-                          {d.lote.producto.nombre}
-                          {d.lote.producto.presentacion && (
-                            <span className="text-gray-400 text-xs"> · {d.lote.producto.presentacion}</span>
+                          {d.producto.nombre}
+                          {d.producto.presentacion && (
+                            <span className="text-gray-400 text-xs"> · {d.producto.presentacion}</span>
                           )}
                         </td>
                         <td className="text-center px-2 py-2 text-gray-600">{d.cantidad}</td>

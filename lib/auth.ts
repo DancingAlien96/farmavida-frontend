@@ -36,8 +36,9 @@ export function getUser(): AuthUser | null {
   }
 }
 
-// Retorna la ruta home según el rol
+// Retorna la ruta home según el rol.
+// El farmacéutico solo usa el Punto de Venta; el admin ve el Tablero.
 export function homeByRole(rol: AuthUser["rol"]): string {
-  if (rol === "CLIENTE") return "/mi-cuenta";
+  if (rol === "FARMACEUTICO") return "/dashboard/pos";
   return "/dashboard";
 }

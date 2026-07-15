@@ -6,8 +6,8 @@ import { ItemCarrito } from "@/hooks/useCarrito";
 
 interface ItemCarritoRowProps {
   item: ItemCarrito;
-  onActualizar: (loteId: number, cantidad: number) => void;
-  onEliminar: (loteId: number) => void;
+  onActualizar: (productoId: number, cantidad: number) => void;
+  onEliminar: (productoId: number) => void;
 }
 
 export function ItemCarritoRow({
@@ -46,7 +46,7 @@ export function ItemCarritoRow({
             variant="outline"
             size="sm"
             className="h-7 w-7 p-0 text-gray-400 hover:text-[#1e3a5f]"
-            onClick={() => onActualizar(item.loteId, item.cantidad - 1)}
+            onClick={() => onActualizar(item.productoId, item.cantidad - 1)}
             disabled={item.cantidad <= 1}
           >
             <Minus className="h-3 w-3" />
@@ -58,7 +58,7 @@ export function ItemCarritoRow({
             variant="outline"
             size="sm"
             className="h-7 w-7 p-0 text-gray-400 hover:text-[#1e3a5f]"
-            onClick={() => onActualizar(item.loteId, item.cantidad + 1)}
+            onClick={() => onActualizar(item.productoId, item.cantidad + 1)}
             disabled={item.cantidad >= item.stockDisponible}
           >
             <Plus className="h-3 w-3" />
@@ -85,7 +85,7 @@ export function ItemCarritoRow({
           variant="ghost"
           size="sm"
           className="h-7 w-7 p-0 text-gray-200 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={() => onEliminar(item.loteId)}
+          onClick={() => onEliminar(item.productoId)}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>

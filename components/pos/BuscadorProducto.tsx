@@ -11,9 +11,9 @@ export interface ProductoResumen {
   codigoBarras: string | null;
   presentacion: string | null;
   precioVenta: string;
-  stockTotal: number;
+  stock: number;
   imagen: string | null;
-  categoria: { nombre: string };
+  categoria: { nombre: string } | null;
 }
 
 interface BuscadorProductoProps {
@@ -37,10 +37,10 @@ export function BuscadorProducto({
       : productos
           .filter(
             (p) =>
-              p.stockTotal > 0 &&
+              p.stock > 0 &&
               (p.nombre.toLowerCase().includes(query.toLowerCase()) ||
                 (p.codigoBarras ?? "").includes(query) ||
-                p.categoria.nombre
+                (p.categoria?.nombre ?? "")
                   .toLowerCase()
                   .includes(query.toLowerCase()))
           )
@@ -116,11 +116,14 @@ export function BuscadorProducto({
                         </p>
                         <p className="text-xs text-gray-400 mt-0.5">
                           {p.presentacion && (
-                            <span>{p.presentacion} · </span>
+                            <span>{p.presentacion}</span>
                           )}
-                          <span className="text-[#1e3a5f]/70">
-                            {p.categoria.nombre}
-                          </span>
+                          {p.presentacion && p.categoria && <span> · </span>}
+                          {p.categoria && (
+                            <span className="text-[#1e3a5f]/70">
+                              {p.categoria.nombre}
+                            </span>
+                          )}
                         </p>
                       </div>
                     </div>
@@ -129,7 +132,7 @@ export function BuscadorProducto({
                         Q {parseFloat(p.precioVenta).toFixed(2)}
                       </p>
                       <p className="text-xs text-gray-400">
-                        Stock: {p.stockTotal}
+                        Stock: {p.stock}
                       </p>
                     </div>
                   </button>

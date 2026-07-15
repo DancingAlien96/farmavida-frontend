@@ -31,7 +31,6 @@ import {
   Pencil,
   Trash2,
   Loader2,
-  Boxes,
   ImageIcon,
   Upload,
   X,
@@ -81,9 +80,9 @@ interface Producto {
   descripcion: string | null;
   imagen: string | null;
   requiereReceta: boolean;
-  stockTotal: number;
-  proximoVencimiento: string | null;
-  categoria: { id: number; nombre: string };
+  stock: number;
+  fechaVencimiento: string | null;
+  categoria: { id: number; nombre: string } | null;
   laboratorio: { id: number; nombre: string } | null;
 }
 
@@ -97,6 +96,7 @@ interface FormData {
   requiereReceta: boolean;
   descripcion: string;
   imagen: string;
+  fechaVencimiento: string;
   categoriaId: string;
   laboratorioId: string;
 }
@@ -108,6 +108,7 @@ const EMPTY_FORM: FormData = {
   concentracion: "",
   descripcion: "",
   imagen: "",
+  fechaVencimiento: "",
   precioVenta: "",
   stockMinimo: "5",
   requiereReceta: false,
@@ -174,18 +175,6 @@ export default function InventarioPage() {
 
   const categoriasArbol = ordenarJerarquia(categorias);
 
-  // Modal de gestión de lotes
-  const [lotesOpen, setLotesOpen] = useState(false);
-  const [lotesProducto, setLotesProducto] = useState<Producto | null>(null);
-  const [lotesList, setLotesList] = useState<{
-    id: number;
-    nroLote: string;
-    cantidadActual: number;
-    fechaVencimiento: string;
-    precioCosto: string;
-  }[]>([]);
-  const [lotesLoading, setLotesLoading] = useState(false);
-
   useEffect(() => {
     const u = getUser();
     setIsAdmin(u?.rol === "ADMIN");
@@ -221,7 +210,7 @@ export default function InventarioPage() {
 
   const productosFiltrados = productos.filter((p) =>
     p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-    p.categoria.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+    (p.categoria?.nombre ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
     (p.codigoBarras ?? "").includes(busqueda)
   );
 
@@ -241,10 +230,11 @@ export default function InventarioPage() {
       concentracion: p.concentracion ?? "",
       descripcion: p.descripcion ?? "",
       imagen: p.imagen ?? "",
+      fechaVencimiento: p.fechaVencimiento ? p.fechaVencimiento.slice(0, 10) : "",
       precioVenta: p.precioVenta,
       stockMinimo: String(p.stockMinimo),
       requiereReceta: p.requiereReceta,
-      categoriaId: String(p.categoria.id),
+      categoriaId: p.categoria ? String(p.categoria.id) : "",
       laboratorioId: p.laboratorio ? String(p.laboratorio.id) : "",
     });
     setError("");
@@ -272,8 +262,8 @@ export default function InventarioPage() {
   }
 
   async function guardar() {
-    if (!form.nombre || !form.precioVenta || !form.categoriaId) {
-      setError("Nombre, precio y categoría son obligatorios.");
+    if (!form.nombre || !form.precioVenta) {
+      setError("El nombre y el precio de venta son obligatorios.");
       return;
     }
 
@@ -289,7 +279,7 @@ export default function InventarioPage() {
         ...form,
         precioVenta: parseFloat(form.precioVenta),
         stockMinimo: parseInt(form.stockMinimo),
-        categoriaId: parseInt(form.categoriaId),
+        categoriaId: form.categoriaId ? parseInt(form.categoriaId) : null,
         laboratorioId: form.laboratorioId ? parseInt(form.laboratorioId) : null,
       };
 
@@ -324,26 +314,10 @@ export default function InventarioPage() {
     cargarProductos();
   }
 
-  async function abrirLotes(p: Producto) {
-    setLotesProducto(p);
-    setLotesOpen(true);
-    setLotesLoading(true);
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/productos/${p.id}/lotes`,
-        { headers: { Authorization: `Bearer ${getToken()}` } }
-      );
-      const data = await res.json();
-      setLotesList(data);
-    } finally {
-      setLotesLoading(false);
-    }
-  }
-
   // Stats rápidas
-  const sinStock = productos.filter((p) => p.stockTotal === 0).length;
-  const stockBajo = productos.filter((p) => p.stockTotal > 0 && p.stockTotal <= p.stockMinimo).length;
-  const enStock = productos.filter((p) => p.stockTotal > p.stockMinimo).length;
+  const sinStock = productos.filter((p) => p.stock === 0).length;
+  const stockBajo = productos.filter((p) => p.stock > 0 && p.stock <= p.stockMinimo).length;
+  const enStock = productos.filter((p) => p.stock > p.stockMinimo).length;
 
   return (
     <div className="space-y-6">
@@ -446,7 +420,7 @@ export default function InventarioPage() {
                 </TableHeader>
                 <TableBody>
                   {productosFiltrados.map((p) => {
-                    const estado = estadoStock(p.stockTotal, p.stockMinimo);
+                    const estado = estadoStock(p.stock, p.stockMinimo);
                     const IconEstado = estado.icon;
                     return (
                       <TableRow key={p.id} className="hover:bg-gray-50 transition-colors">
@@ -472,16 +446,20 @@ export default function InventarioPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <span className="text-xs bg-[#1e3a5f]/10 text-[#1e3a5f] px-2 py-0.5 rounded-full font-medium">
-                            {p.categoria.nombre}
-                          </span>
+                          {p.categoria ? (
+                            <span className="text-xs bg-[#1e3a5f]/10 text-[#1e3a5f] px-2 py-0.5 rounded-full font-medium">
+                              {p.categoria.nombre}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-300">Sin categoría</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right font-semibold text-gray-900 text-sm">
                           Q {parseFloat(p.precioVenta).toFixed(2)}
                         </TableCell>
                         <TableCell className="text-center">
-                          <span className={`font-bold text-sm ${p.stockTotal === 0 ? "text-red-600" : p.stockTotal <= p.stockMinimo ? "text-yellow-600" : "text-gray-900"}`}>
-                            {p.stockTotal}
+                          <span className={`font-bold text-sm ${p.stock === 0 ? "text-red-600" : p.stock <= p.stockMinimo ? "text-yellow-600" : "text-gray-900"}`}>
+                            {p.stock}
                           </span>
                           <span className="text-xs text-gray-400 ml-1">uds</span>
                         </TableCell>
@@ -492,8 +470,8 @@ export default function InventarioPage() {
                           </span>
                         </TableCell>
                         <TableCell className="text-sm text-gray-500">
-                          {p.proximoVencimiento
-                            ? new Date(p.proximoVencimiento).toLocaleDateString("es-GT", { day: "2-digit", month: "short", year: "numeric" })
+                          {p.fechaVencimiento
+                            ? new Date(p.fechaVencimiento).toLocaleDateString("es-GT", { day: "2-digit", month: "short", year: "numeric" })
                             : <span className="text-gray-300">—</span>}
                         </TableCell>
                         <TableCell className="text-right">
@@ -509,15 +487,6 @@ export default function InventarioPage() {
                             </Button>
                             {isAdmin && (
                               <>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  title="Ver lotes"
-                                  className="h-8 w-8 p-0 text-gray-400 hover:text-[#29abe2] hover:bg-[#29abe2]/10"
-                                  onClick={() => abrirLotes(p)}
-                                >
-                                  <Boxes className="h-3.5 w-3.5" />
-                                </Button>
                                 <Button
                                   size="sm"
                                   variant="ghost"
@@ -576,16 +545,18 @@ export default function InventarioPage() {
               <div>
                 <div className="flex items-start justify-between gap-3">
                   <h3 className="text-lg font-bold text-gray-900">{detalle.nombre}</h3>
-                  <span className="text-xs bg-[#1e3a5f]/10 text-[#1e3a5f] px-2 py-0.5 rounded-full font-medium shrink-0">
-                    {detalle.categoria.nombre}
-                  </span>
+                  {detalle.categoria && (
+                    <span className="text-xs bg-[#1e3a5f]/10 text-[#1e3a5f] px-2 py-0.5 rounded-full font-medium shrink-0">
+                      {detalle.categoria.nombre}
+                    </span>
+                  )}
                 </div>
                 <p className="text-sm text-gray-500 mt-0.5">
                   {[detalle.presentacion, detalle.concentracion].filter(Boolean).join(" · ") || "Sin presentación"}
                 </p>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${estadoStock(detalle.stockTotal, detalle.stockMinimo).color}`}>
-                    {estadoStock(detalle.stockTotal, detalle.stockMinimo).label}
+                  <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${estadoStock(detalle.stock, detalle.stockMinimo).color}`}>
+                    {estadoStock(detalle.stock, detalle.stockMinimo).label}
                   </span>
                   {detalle.requiereReceta && (
                     <span className="text-xs font-medium text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
@@ -598,15 +569,15 @@ export default function InventarioPage() {
               {/* Datos */}
               <div className="grid grid-cols-2 gap-3 border-t border-gray-100 pt-4">
                 <Dato label="Precio de venta" valor={`Q ${parseFloat(detalle.precioVenta).toFixed(2)}`} destacado />
-                <Dato label="Stock actual" valor={`${detalle.stockTotal} uds`} />
+                <Dato label="Stock actual" valor={`${detalle.stock} uds`} />
                 <Dato label="Umbral de alerta" valor={`${detalle.stockMinimo} uds`} />
                 <Dato label="Laboratorio" valor={detalle.laboratorio?.nombre ?? "—"} />
                 <Dato label="Código de barras" valor={detalle.codigoBarras || "—"} />
                 <Dato
                   label="Próximo vencimiento"
                   valor={
-                    detalle.proximoVencimiento
-                      ? new Date(detalle.proximoVencimiento).toLocaleDateString("es-GT", { day: "2-digit", month: "short", year: "numeric" })
+                    detalle.fechaVencimiento
+                      ? new Date(detalle.fechaVencimiento).toLocaleDateString("es-GT", { day: "2-digit", month: "short", year: "numeric" })
                       : "—"
                   }
                 />
@@ -728,13 +699,13 @@ export default function InventarioPage() {
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Clasificación</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1.5 block">Categoría *</label>
+                    <label className="text-sm font-medium text-gray-700 mb-1.5 block">Categoría</label>
                     <select
                       className="w-full h-9 rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                       value={form.categoriaId}
                       onChange={(e) => setForm({ ...form, categoriaId: e.target.value })}
                     >
-                      <option value="">-- Seleccionar --</option>
+                      <option value="">-- Sin categoría --</option>
                       {categoriasArbol.map((c) => (
                         <option key={c.id} value={String(c.id)}>
                           {c.depth === 0 ? c.nombre : `    ↳ ${c.nombre}`}
@@ -791,6 +762,19 @@ export default function InventarioPage() {
                       Avisa cuando el stock baje de este valor
                     </p>
                   </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1.5 block">
+                      Fecha de vencimiento
+                    </label>
+                    <Input
+                      type="date"
+                      value={form.fechaVencimiento}
+                      onChange={(e) => setForm({ ...form, fechaVencimiento: e.target.value })}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      También se actualiza al registrar una compra
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -844,90 +828,6 @@ export default function InventarioPage() {
                 {guardando && <Loader2 className="h-4 w-4 animate-spin" />}
                 {editando ? "Guardar cambios" : "Crear producto"}
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Dialog gestión de lotes — solo admin */}
-      {isAdmin && (
-        <Dialog open={lotesOpen} onOpenChange={setLotesOpen}>
-          <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader className="pb-2 border-b border-gray-100">
-              <DialogTitle className="text-[#1e3a5f] flex items-center gap-2">
-                <Boxes className="h-5 w-5" />
-                Lotes de {lotesProducto?.nombre}
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="space-y-5 py-2">
-              {/* Tabla de lotes existentes */}
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                  Lotes registrados
-                </p>
-                {lotesLoading ? (
-                  <div className="flex items-center justify-center py-8 text-gray-400 gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm">Cargando lotes...</span>
-                  </div>
-                ) : lotesList.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-gray-400 border border-dashed border-gray-200 rounded-lg">
-                    <Boxes className="h-8 w-8 mb-1.5" />
-                    <p className="text-sm">Aún no hay lotes registrados</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto border border-gray-100 rounded-lg">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-gray-50">
-                          <TableHead className="text-xs font-semibold text-gray-500 uppercase">N° Lote</TableHead>
-                          <TableHead className="text-xs font-semibold text-gray-500 uppercase text-center">Cantidad</TableHead>
-                          <TableHead className="text-xs font-semibold text-gray-500 uppercase">Vencimiento</TableHead>
-                          <TableHead className="text-xs font-semibold text-gray-500 uppercase text-right">Precio costo</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {lotesList.map((l) => {
-                          const venc = new Date(l.fechaVencimiento);
-                          const hoy = new Date();
-                          const diasParaVencer = Math.ceil((venc.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
-                          const vencido = diasParaVencer < 0;
-                          const proximo = diasParaVencer >= 0 && diasParaVencer <= 30;
-                          return (
-                            <TableRow key={l.id} className="hover:bg-gray-50">
-                              <TableCell className="font-medium text-gray-900 text-sm">{l.nroLote}</TableCell>
-                              <TableCell className="text-center text-sm">
-                                <span className={l.cantidadActual === 0 ? "text-gray-400" : "font-semibold text-gray-900"}>
-                                  {l.cantidadActual}
-                                </span>
-                              </TableCell>
-                              <TableCell className="text-sm">
-                                <span className={vencido ? "text-red-600 font-medium" : proximo ? "text-yellow-600 font-medium" : "text-gray-600"}>
-                                  {venc.toLocaleDateString("es-GT", { day: "2-digit", month: "short", year: "numeric" })}
-                                </span>
-                                {vencido && <span className="ml-1.5 text-xs text-red-500">vencido</span>}
-                                {proximo && <span className="ml-1.5 text-xs text-yellow-600">en {diasParaVencer}d</span>}
-                              </TableCell>
-                              <TableCell className="text-right text-sm text-gray-600">
-                                Q {parseFloat(l.precioCosto).toFixed(2)}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </div>
-
-              <p className="text-xs text-gray-500 bg-blue-50 border border-blue-100 px-3 py-2.5 rounded-lg">
-                💡 Los lotes entran automáticamente al registrar una <strong>Compra</strong>. Esta vista es solo de consulta.
-              </p>
-            </div>
-
-            <DialogFooter className="pt-2 border-t border-gray-100">
-              <Button variant="outline" onClick={() => setLotesOpen(false)}>Cerrar</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
