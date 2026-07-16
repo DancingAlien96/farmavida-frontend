@@ -54,9 +54,16 @@ interface CompraDetalle {
   detalles: {
     id: number;
     cantidad: number;
+    unidadNombre: string;
+    unidadEquivale: number;
     precioCosto: string;
     subtotal: number;
-    producto: { id: number; nombre: string; presentacion: string | null };
+    producto: {
+      id: number;
+      nombre: string;
+      presentacion: string | null;
+      unidadBase: string;
+    };
   }[];
 }
 
@@ -70,18 +77,23 @@ interface ProductoLista {
   id: number;
   nombre: string;
   presentacion: string | null;
+  unidadBase: string;
+  unidadesVenta: { id: number; nombre: string; equivale: number }[];
 }
 
 interface ItemForm {
   productoId: string;
+  // Forma en que entra la mercadería: "" = unidad base, o el id de una forma (caja, blíster)
+  unidadVentaId: string;
   cantidad: string;
   precioCosto: string;
-  // Opcional: actualiza la fecha de vencimiento del producto
+  // Opcional: vencimiento de esta entrada
   fechaVencimiento: string;
 }
 
 const EMPTY_ITEM: ItemForm = {
   productoId: "",
+  unidadVentaId: "",
   cantidad: "",
   precioCosto: "",
   fechaVencimiento: "",
@@ -177,7 +189,23 @@ export default function ComprasPage() {
   }
 
   function actualizarItem(idx: number, campo: keyof ItemForm, valor: string) {
-    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, [campo]: valor } : it)));
+    setItems((prev) =>
+      prev.map((it, i) => {
+        if (i !== idx) return it;
+        const actualizado = { ...it, [campo]: valor };
+        // Al cambiar de producto, preselecciona la forma más grande (normalmente
+        // la caja), que es como suele entrar la mercadería del proveedor.
+        if (campo === "productoId") {
+          const p = productos.find((x) => String(x.id) === valor);
+          const mayor = p?.unidadesVenta?.reduce(
+            (max, u) => (!max || u.equivale > max.equivale ? u : max),
+            null as { id: number; equivale: number } | null
+          );
+          actualizado.unidadVentaId = mayor ? String(mayor.id) : "";
+        }
+        return actualizado;
+      })
+    );
   }
 
   function agregarItem() {
@@ -229,6 +257,7 @@ export default function ComprasPage() {
           observacion: observacion || undefined,
           items: items.map((it) => ({
             productoId: parseInt(it.productoId),
+            unidadVentaId: it.unidadVentaId ? parseInt(it.unidadVentaId) : undefined,
             cantidad: parseInt(it.cantidad),
             precioCosto: parseFloat(it.precioCosto),
             fechaVencimiento: it.fechaVencimiento || undefined,
@@ -300,7 +329,7 @@ export default function ComprasPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-l-4 border-l-green-500">
+        <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -318,7 +347,7 @@ export default function ComprasPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-blue-500">
+        <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -331,7 +360,7 @@ export default function ComprasPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-red-500">
+        <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -499,6 +528,46 @@ export default function ComprasPage() {
                   </Button>
                 </div>
 
+                {/* Guía: el error más común es poner el total en vez del costo unitario */}
+                <details className="mb-3 rounded-lg bg-blue-50 border border-blue-100">
+                  <summary className="cursor-pointer select-none px-3 py-2.5 text-xs text-gray-600">
+                    💡 <strong>Cómo llenarlo:</strong> el costo es <strong>por unidad</strong>, no el total de la
+                    factura. Agrega un item por cada producto distinto.
+                    <span className="ml-1 font-semibold text-[#1e3a5f] underline">Ver ejemplos ▾</span>
+                  </summary>
+                  <div className="px-3 pb-3 overflow-x-auto">
+                    <table className="w-full text-xs border-collapse min-w-[440px]">
+                      <thead>
+                        <tr className="text-gray-400 border-b border-blue-100">
+                          <th className="text-left font-semibold py-1.5 pr-2">Lo que compraste</th>
+                          <th className="text-left font-semibold py-1.5 pr-2">Cantidad</th>
+                          <th className="text-left font-semibold py-1.5 pr-2">Costo por unidad</th>
+                          <th className="text-left font-semibold py-1.5">Vence</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-gray-600">
+                        {[
+                          ["2 sueros a Q5 c/u (pagaste Q10)", "2", "5.00 ✅ (no 10)", "La del envase"],
+                          ["1 caja de Acetaminofén a Q15", "1", "15.00", "La de la caja"],
+                          ["12 jarabes a Q28 c/u", "12", "28.00", "La del frasco"],
+                          ["6 termómetros a Q45 c/u", "6", "45.00", "(vacío, no vence)"],
+                        ].map(([caso, cant, costo, vence]) => (
+                          <tr key={caso} className="border-b border-blue-50/70 last:border-0">
+                            <td className="py-1.5 pr-2">{caso}</td>
+                            <td className="py-1.5 pr-2 font-medium text-gray-700">{cant}</td>
+                            <td className="py-1.5 pr-2 font-medium text-gray-700">{costo}</td>
+                            <td className="py-1.5 text-gray-500">{vence}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="text-xs text-gray-500 mt-2">
+                      El <strong>total</strong> lo calcula el sistema solo. Al guardar, la cantidad se{" "}
+                      <strong>suma al stock</strong> y la fecha actualiza el vencimiento del producto.
+                    </p>
+                  </div>
+                </details>
+
                 <div className="space-y-3">
                   {items.map((it, idx) => {
                     const subtotal =
@@ -532,6 +601,33 @@ export default function ComprasPage() {
                           </Button>
                         </div>
 
+                        {/* Forma en que entra: solo si el producto tiene varias */}
+                        {(() => {
+                          const prod = productos.find((x) => String(x.id) === it.productoId);
+                          if (!prod || prod.unidadesVenta.length === 0) return null;
+                          return (
+                            <div className="mb-2">
+                              <label className="text-xs font-medium text-gray-500 mb-1 block">
+                                ¿En qué forma entra? *
+                              </label>
+                              <select
+                                value={it.unidadVentaId}
+                                onChange={(e) => actualizarItem(idx, "unidadVentaId", e.target.value)}
+                                className="w-full h-9 px-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#29abe2]/40"
+                              >
+                                <option value="">
+                                  {prod.unidadBase} suelta (1 {prod.unidadBase.toLowerCase()})
+                                </option>
+                                {prod.unidadesVenta.map((u) => (
+                                  <option key={u.id} value={String(u.id)}>
+                                    {u.nombre} ({u.equivale} {prod.unidadBase.toLowerCase()}s c/u)
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        })()}
+
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                           <div>
                             <label className="text-xs font-medium text-gray-500 mb-1 block">Cantidad *</label>
@@ -543,9 +639,21 @@ export default function ComprasPage() {
                               placeholder="0"
                               className="h-9"
                             />
+                            <p className="text-[11px] text-gray-400 mt-1">
+                              {(() => {
+                                const prod = productos.find((x) => String(x.id) === it.productoId);
+                                if (!prod) return "Unidades que entran";
+                                const u = prod.unidadesVenta.find((x) => String(x.id) === it.unidadVentaId);
+                                const n = parseInt(it.cantidad) || 0;
+                                if (!u) return `${prod.unidadBase}s que entran`;
+                                return `${u.nombre}s → ${n * u.equivale} ${prod.unidadBase.toLowerCase()}s al stock`;
+                              })()}
+                            </p>
                           </div>
                           <div>
-                            <label className="text-xs font-medium text-gray-500 mb-1 block">Precio costo (Q) *</label>
+                            <label className="text-xs font-medium text-gray-500 mb-1 block">
+                              Costo por unidad (Q) *
+                            </label>
                             <Input
                               type="number"
                               min="0"
@@ -555,6 +663,9 @@ export default function ComprasPage() {
                               placeholder="0.00"
                               className="h-9"
                             />
+                            <p className="text-[11px] text-gray-400 mt-1">
+                              Lo que cuesta <strong>cada una</strong>, no el total
+                            </p>
                           </div>
                           <div>
                             <label className="text-xs font-medium text-gray-500 mb-1 block">Vence</label>
@@ -564,6 +675,7 @@ export default function ComprasPage() {
                               onChange={(e) => actualizarItem(idx, "fechaVencimiento", e.target.value)}
                               className="h-9"
                             />
+                            <p className="text-[11px] text-gray-400 mt-1">La fecha del envase</p>
                           </div>
                         </div>
 
@@ -675,25 +787,48 @@ export default function ComprasPage() {
                     <TableHeader>
                       <TableRow className="bg-gray-50">
                         <TableHead className="text-xs font-semibold text-gray-500 uppercase">Producto</TableHead>
-                        <TableHead className="text-xs font-semibold text-gray-500 uppercase text-center">Cant.</TableHead>
-                        <TableHead className="text-xs font-semibold text-gray-500 uppercase text-right">P. costo</TableHead>
+                        <TableHead className="text-xs font-semibold text-gray-500 uppercase">Cantidad</TableHead>
+                        <TableHead className="text-xs font-semibold text-gray-500 uppercase text-right">Costo c/u</TableHead>
                         <TableHead className="text-xs font-semibold text-gray-500 uppercase text-right">Subtotal</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {detalle.detalles.map((d) => (
-                        <TableRow key={d.id}>
-                          <TableCell>
-                            <p className="font-medium text-gray-900 text-sm">{d.producto.nombre}</p>
-                            {d.producto.presentacion && (
-                              <p className="text-xs text-gray-400">{d.producto.presentacion}</p>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center text-sm font-semibold">{d.cantidad}</TableCell>
-                          <TableCell className="text-right text-sm">Q {parseFloat(d.precioCosto).toFixed(2)}</TableCell>
-                          <TableCell className="text-right text-sm font-semibold">Q {d.subtotal.toFixed(2)}</TableCell>
-                        </TableRow>
-                      ))}
+                      {detalle.detalles.map((d) => {
+                        // "2 Cajas" en vez de un "2" suelto que no dice de qué
+                        const unidad = d.cantidad === 1 ? d.unidadNombre : `${d.unidadNombre}s`;
+                        const base = (d.producto.unidadBase || "unidad").toLowerCase();
+                        return (
+                          <TableRow key={d.id}>
+                            <TableCell>
+                              <p className="font-medium text-gray-900 text-sm">{d.producto.nombre}</p>
+                              {d.producto.presentacion && (
+                                <p className="text-xs text-gray-400">{d.producto.presentacion}</p>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <p className="text-sm font-semibold text-gray-900">
+                                {d.cantidad} {unidad}
+                              </p>
+                              {d.unidadEquivale > 1 && (
+                                <p className="text-xs text-gray-400">
+                                  = {d.cantidad * d.unidadEquivale} {base}s al stock
+                                </p>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <p className="text-sm text-gray-800">
+                                Q {parseFloat(d.precioCosto).toFixed(2)}
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                por {d.unidadNombre.toLowerCase()}
+                              </p>
+                            </TableCell>
+                            <TableCell className="text-right text-sm font-semibold">
+                              Q {d.subtotal.toFixed(2)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>

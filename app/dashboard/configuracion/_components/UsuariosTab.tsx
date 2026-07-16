@@ -280,7 +280,7 @@ export default function UsuariosTab() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-l-4 border-l-purple-500">
+        <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -293,7 +293,7 @@ export default function UsuariosTab() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-blue-500">
+        <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -306,7 +306,7 @@ export default function UsuariosTab() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-red-500">
+        <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between">
               <div>

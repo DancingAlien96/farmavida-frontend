@@ -6,12 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   CreditCard,
   Banknote,
   ArrowLeftRight,
   Loader2,
   ShoppingBag,
   AlertCircle,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +39,8 @@ interface PanelCobroProps {
   total: number;
   totalUnidades: number;
   loading: boolean;
+  /** Nombre del cliente, para mostrarlo en la confirmación */
+  clienteNombre?: string;
   onCobrar: (metodoPago: MetodoPago, efectivoRecibido?: number) => void;
 }
 
@@ -38,10 +48,12 @@ export function PanelCobro({
   total,
   totalUnidades,
   loading,
+  clienteNombre,
   onCobrar,
 }: PanelCobroProps) {
   const [metodo, setMetodo] = useState<MetodoPago>("EFECTIVO");
   const [efectivo, setEfectivo] = useState("");
+  const [confirmando, setConfirmando] = useState(false);
 
   const efectivoNum = parseFloat(efectivo) || 0;
   const cambio =
@@ -55,7 +67,15 @@ export function PanelCobro({
     totalUnidades > 0 &&
     (metodo !== "EFECTIVO" || efectivoNum >= total);
 
-  function handleCobrar() {
+  const metodoLabel = METODOS.find((m) => m.value === metodo)?.label ?? metodo;
+
+  /** Al pulsar Cobrar solo se abre la confirmación; la venta se hace al confirmar. */
+  function pedirConfirmacion() {
+    setConfirmando(true);
+  }
+
+  function confirmarCobro() {
+    setConfirmando(false);
     onCobrar(metodo, metodo === "EFECTIVO" ? efectivoNum : undefined);
     setEfectivo("");
   }
@@ -177,7 +197,7 @@ export function PanelCobro({
               : "bg-gray-100 text-gray-400"
           )}
           disabled={!puedesCobrar || loading}
-          onClick={handleCobrar}
+          onClick={pedirConfirmacion}
         >
           {loading ? (
             <>
@@ -191,6 +211,84 @@ export function PanelCobro({
             </>
           )}
         </Button>
+
+        {/* Confirmación antes de registrar la venta */}
+        <Dialog open={confirmando} onOpenChange={setConfirmando}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader className="pb-2 border-b border-gray-100">
+              <DialogTitle className="text-[#1e3a5f] flex items-center gap-2">
+                <HelpCircle className="h-5 w-5 text-[#29abe2]" />
+                ¿Confirmas el cobro?
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-3 py-1">
+              {/* Total grande, que es lo que importa */}
+              <div className="bg-[#1e3a5f]/5 border border-[#1e3a5f]/10 rounded-xl p-4 text-center">
+                <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">
+                  Total a cobrar
+                </p>
+                <p className="text-3xl font-bold text-[#1e3a5f] mt-1 tabular-nums">
+                  Q {total.toFixed(2)}
+                </p>
+              </div>
+
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Productos</span>
+                  <span className="font-medium text-gray-800">
+                    {totalUnidades} {totalUnidades === 1 ? "ítem" : "ítems"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Cliente</span>
+                  <span className="font-medium text-gray-800">
+                    {clienteNombre || "Consumidor final"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Método de pago</span>
+                  <span className="font-medium text-gray-800">{metodoLabel}</span>
+                </div>
+                {metodo === "EFECTIVO" && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Recibe</span>
+                      <span className="font-medium text-gray-800 tabular-nums">
+                        Q {efectivoNum.toFixed(2)}
+                      </span>
+                    </div>
+                    {cambio !== null && cambio > 0 && (
+                      <div className="flex justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2 mt-1">
+                        <span className="font-semibold text-green-700">Cambio a devolver</span>
+                        <span className="font-bold text-green-700 tabular-nums">
+                          Q {cambio.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <p className="text-xs text-gray-400 text-center">
+                Se descontará el stock. Si te equivocas, un administrador puede anular la venta.
+              </p>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfirmando(false)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={confirmarCobro}
+                className="bg-[#29abe2] hover:bg-[#1e90c8] text-white gap-2"
+              >
+                <CreditCard className="h-4 w-4" />
+                Sí, cobrar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );

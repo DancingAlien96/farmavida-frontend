@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getToken } from "@/lib/auth";
-import { useCarrito, ItemCarrito } from "@/hooks/useCarrito";
+import { useCarrito, ItemCarrito, claveItem } from "@/hooks/useCarrito";
 import {
   BuscadorProducto,
   ProductoResumen,
@@ -31,6 +31,7 @@ export default function PosPage() {
     limpiar,
     total,
     totalUnidades,
+    maximoDe,
   } = useCarrito();
 
   // Cargar catálogo al montar
@@ -51,9 +52,9 @@ export default function PosPage() {
     cargar();
   }, []);
 
-  // Seleccionar producto -> agregar al carrito con su stock disponible
+  // Seleccionar producto (y su forma de venta) -> agregar al carrito
   const handleSeleccionar = useCallback(
-    async (productoId: number) => {
+    async (productoId: number, unidadVentaId: number | null) => {
       try {
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/productos/${productoId}`,
@@ -66,14 +67,36 @@ export default function PosPage() {
           return;
         }
 
+        // Resuelve la forma elegida: la unidad base o una forma extra (blíster, caja)
+        const unidad = unidadVentaId
+          ? p.unidadesVenta?.find((u: { id: number }) => u.id === unidadVentaId)
+          : null;
+
+        if (unidadVentaId && !unidad) {
+          toast("Esa forma de venta ya no existe", "error");
+          return;
+        }
+
+        const equivale = unidad ? unidad.equivale : 1;
+        if (p.stock < equivale) {
+          toast(
+            `No alcanza el stock para vender 1 ${unidad ? unidad.nombre : p.unidadBase}`,
+            "error"
+          );
+          return;
+        }
+
         const item: ItemCarrito = {
           productoId: p.id,
           nombre: p.nombre,
           presentacion: p.presentacion ?? "",
           imagen: p.imagen ?? null,
-          precioUnit: parseFloat(p.precioVenta),
+          unidadVentaId: unidad ? unidad.id : null,
+          unidadNombre: unidad ? unidad.nombre : p.unidadBase,
+          unidadEquivale: equivale,
+          precioUnit: parseFloat(unidad ? unidad.precio : p.precioVenta),
           cantidad: 1,
-          stockDisponible: p.stock,
+          stockBase: p.stock,
         };
         agregar(item);
       } catch {
@@ -106,6 +129,7 @@ export default function PosPage() {
             items: items.map((i) => ({
               productoId: i.productoId,
               cantidad: i.cantidad,
+              unidadVentaId: i.unidadVentaId,
             })),
           }),
         }
@@ -202,8 +226,9 @@ export default function PosPage() {
                     <tbody>
                       {items.map((item) => (
                         <ItemCarritoRow
-                          key={item.productoId}
+                          key={claveItem(item.productoId, item.unidadVentaId)}
                           item={item}
+                          maximo={maximoDe(item)}
                           onActualizar={actualizarCantidad}
                           onEliminar={eliminar}
                         />
@@ -245,6 +270,7 @@ export default function PosPage() {
             total={total}
             totalUnidades={totalUnidades}
             loading={procesando}
+            clienteNombre={cliente ? `${cliente.nombres} ${cliente.apellidos}` : undefined}
             onCobrar={handleCobrar}
           />
         </div>

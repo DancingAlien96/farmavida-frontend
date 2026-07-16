@@ -192,7 +192,7 @@ export default function DashboardPage() {
 
       {/* Tarjetas de métricas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-[#29abe2]">
+        <Card>
           <CardContent className="pt-5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Ventas de Hoy</span>
@@ -209,7 +209,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-red-500">
+        <Card>
           <CardContent className="pt-5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Alertas de Stock</span>
@@ -223,7 +223,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-[#4a8c3e]">
+        <Card>
           <CardContent className="pt-5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Total de Productos</span>
@@ -238,7 +238,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-green-500">
+        <Card>
           <CardContent className="pt-5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Ingresos del Mes</span>

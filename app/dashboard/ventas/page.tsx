@@ -39,6 +39,8 @@ import {
 interface DetalleVenta {
   id: number;
   cantidad: number;
+  unidadNombre: string;
+  unidadEquivale: number;
   precioUnit: string;
   subtotal: string;
   producto: { nombre: string; presentacion: string | null };
@@ -298,7 +300,7 @@ export default function VentasPage() {
 
       {/* Stats del período */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-l-4 border-l-[#29abe2]">
+        <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -309,7 +311,7 @@ export default function VentasPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-green-500">
+        <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -320,7 +322,7 @@ export default function VentasPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-red-400">
+        <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -505,8 +507,9 @@ export default function VentasPage() {
                       <tr key={d.id}>
                         <td className="px-3 py-2 text-gray-800">
                           {d.producto.nombre}
-                          {d.producto.presentacion && (
-                            <span className="text-gray-400 text-xs"> · {d.producto.presentacion}</span>
+                          <span className="text-[#1e3a5f] text-xs font-medium"> · {d.unidadNombre}</span>
+                          {d.unidadEquivale > 1 && (
+                            <span className="text-gray-400 text-xs"> ({d.unidadEquivale} c/u)</span>
                           )}
                         </td>
                         <td className="text-center px-2 py-2 text-gray-600">{d.cantidad}</td>
