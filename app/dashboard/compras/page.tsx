@@ -40,7 +40,7 @@ interface CompraLista {
   total: string;
   estado: "PENDIENTE" | "RECIBIDA" | "ANULADA";
   observacion: string | null;
-  proveedor: { id: number; nombre: string };
+  proveedor: { id: number; nombre: string } | null;
   itemsCount: number;
 }
 
@@ -50,7 +50,7 @@ interface CompraDetalle {
   total: string;
   estado: "PENDIENTE" | "RECIBIDA" | "ANULADA";
   observacion: string | null;
-  proveedor: { id: number; nombre: string; ruc: string | null };
+  proveedor: { id: number; nombre: string; ruc: string | null } | null;
   detalles: {
     id: number;
     cantidad: number;
@@ -164,7 +164,7 @@ export default function ComprasPage() {
 
   const comprasFiltradas = compras.filter(
     (c) =>
-      c.proveedor.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+      (c.proveedor?.nombre ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
       String(c.id).includes(busqueda)
   );
 
@@ -224,10 +224,7 @@ export default function ComprasPage() {
 
   async function guardarCompra() {
     setError("");
-    if (!proveedorId) {
-      setError("Selecciona un proveedor.");
-      return;
-    }
+    // El proveedor es opcional
     if (items.length === 0) {
       setError("Agrega al menos un item.");
       return;
@@ -252,7 +249,7 @@ export default function ComprasPage() {
           Authorization: `Bearer ${getToken()}`,
         },
         body: JSON.stringify({
-          proveedorId: parseInt(proveedorId),
+          proveedorId: proveedorId ? parseInt(proveedorId) : null,
           fecha: fechaCompra,
           observacion: observacion || undefined,
           items: items.map((it) => ({
@@ -428,7 +425,9 @@ export default function ComprasPage() {
                         })}
                       </TableCell>
                       <TableCell className="text-sm font-medium text-gray-900">
-                        {c.proveedor.nombre}
+                        {c.proveedor?.nombre ?? (
+                          <span className="text-gray-400 font-normal">Sin proveedor</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-center text-sm text-gray-600">
                         {c.itemsCount}
@@ -489,17 +488,18 @@ export default function ComprasPage() {
               {/* Cabecera */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="sm:col-span-2">
-                  <label className="text-sm font-medium text-gray-700 mb-1.5 block">Proveedor *</label>
+                  <label className="text-sm font-medium text-gray-700 mb-1.5 block">Proveedor</label>
                   <select
                     value={proveedorId}
                     onChange={(e) => setProveedorId(e.target.value)}
                     className="w-full h-9 px-3 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#29abe2]/40 focus:border-[#29abe2]"
                   >
-                    <option value="">-- Seleccionar --</option>
+                    <option value="">Sin proveedor</option>
                     {proveedores.filter((p) => p.activo).map((p) => (
                       <option key={p.id} value={p.id}>{p.nombre}</option>
                     ))}
                   </select>
+                  <p className="text-xs text-gray-400 mt-1">Opcional</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-1.5 block">Fecha</label>
@@ -750,9 +750,11 @@ export default function ComprasPage() {
                   <p className="text-xs font-semibold text-gray-400 uppercase">Proveedor</p>
                   <p className="font-medium text-gray-900 flex items-center gap-1.5 mt-1">
                     <Truck className="h-4 w-4 text-gray-400" />
-                    {detalle.proveedor.nombre}
+                    {detalle.proveedor?.nombre ?? (
+                      <span className="text-gray-400 font-normal">Sin proveedor</span>
+                    )}
                   </p>
-                  {detalle.proveedor.ruc && (
+                  {detalle.proveedor?.ruc && (
                     <p className="text-xs text-gray-500 mt-0.5">RUC: {detalle.proveedor.ruc}</p>
                   )}
                 </div>

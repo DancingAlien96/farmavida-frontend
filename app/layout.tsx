@@ -13,7 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FarmaVida",
+  title: {
+    default: "FarmaVida",
+    template: "%s · FarmaVida",
+  },
   description: "Sistema de gestión para Farmacia FarmaVida",
 };
 
