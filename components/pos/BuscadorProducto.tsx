@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Search, Loader2, Package, ChevronRight } from "lucide-react";
+import { Search, Loader2, Package, ChevronRight, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -17,12 +17,27 @@ export interface ProductoResumen {
   nombre: string;
   codigoBarras: string | null;
   presentacion: string | null;
+  descripcion: string | null;
   unidadBase: string;
   precioVenta: string;
   stock: number;
   imagen: string | null;
   categoria: { nombre: string } | null;
   unidadesVenta: UnidadVentaResumen[];
+}
+
+// Quita acentos y pasa a minúsculas para que "fiebre" encuentre "Fiebre".
+const norm = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+// Devuelve un fragmento de la descripción alrededor de lo buscado ("…para la fiebre…").
+function fragmento(texto: string, q: string, largo = 60): string {
+  const t = texto.trim();
+  const idx = norm(t).indexOf(q);
+  if (idx < 0) return t.length > largo ? t.slice(0, largo) + "…" : t;
+  const ini = Math.max(0, idx - 18);
+  const fin = Math.min(t.length, idx + q.length + 42);
+  return (ini > 0 ? "…" : "") + t.slice(ini, fin).trim() + (fin < t.length ? "…" : "");
 }
 
 interface BuscadorProductoProps {
@@ -43,19 +58,25 @@ export function BuscadorProducto({
   const [expandido, setExpandido] = useState<number | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
+  const q = norm(query.trim());
   const resultados =
-    query.trim().length < 2
+    q.length < 2
       ? []
       : productos
-          .filter(
-            (p) =>
-              p.stock > 0 &&
-              (p.nombre.toLowerCase().includes(query.toLowerCase()) ||
-                (p.codigoBarras ?? "").includes(query) ||
-                (p.categoria?.nombre ?? "")
-                  .toLowerCase()
-                  .includes(query.toLowerCase()))
-          )
+          .filter((p) => p.stock > 0)
+          .map((p) => {
+            const enNombre = norm(p.nombre).includes(q);
+            const enCodigo = (p.codigoBarras ?? "").includes(query.trim());
+            const enCategoria = norm(p.categoria?.nombre ?? "").includes(q);
+            const enDescripcion = norm(p.descripcion ?? "").includes(q);
+            return {
+              p,
+              coincide: enNombre || enCodigo || enCategoria || enDescripcion,
+              // Se sugiere por el malestar cuando SOLO coincide en la descripción
+              porMalestar: enDescripcion && !enNombre && !enCodigo && !enCategoria,
+            };
+          })
+          .filter((r) => r.coincide)
           .slice(0, 8);
 
   useEffect(() => {
@@ -94,7 +115,7 @@ export function BuscadorProducto({
         )}
         <Input
           className="pl-10 pr-10 h-12 text-sm bg-white shadow-sm"
-          placeholder="Buscar producto por nombre, código de barras o categoría..."
+          placeholder="Buscar por nombre, código o malestar (ej. fiebre, tos, dolor)..."
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -110,11 +131,11 @@ export function BuscadorProducto({
           {resultados.length === 0 ? (
             <div className="flex items-center gap-2 px-4 py-4 text-sm text-gray-400">
               <Package className="h-4 w-4 shrink-0" />
-              No se encontraron productos con stock disponible
+              Nada con stock para “{query.trim()}”. Prueba con otro nombre o malestar.
             </div>
           ) : (
             <ul className="divide-y divide-gray-50">
-              {resultados.map((p) => {
+              {resultados.map(({ p, porMalestar }) => {
                 const base = (p.unidadBase || "unidad").toLowerCase();
                 const abiertoEste = expandido === p.id;
                 return (
@@ -148,6 +169,13 @@ export function BuscadorProducto({
                               <span className="text-[#1e3a5f]/70">{p.categoria.nombre}</span>
                             )}
                           </p>
+                          {/* Cuando se sugiere por lo que trata, muestra el fragmento */}
+                          {porMalestar && p.descripcion && (
+                            <p className="text-xs text-[#4a8c3e] mt-0.5 flex items-center gap-1 truncate">
+                              <Sparkles className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{fragmento(p.descripcion, q)}</span>
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="text-right shrink-0 flex items-center gap-2">
