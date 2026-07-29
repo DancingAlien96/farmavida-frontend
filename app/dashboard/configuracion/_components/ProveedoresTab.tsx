@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { getToken } from "@/lib/auth";
+import { toast } from "@/components/ui/toast";
+import { confirmar } from "@/components/ui/confirm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -148,11 +150,18 @@ export default function ProveedoresTab() {
   }
 
   async function desactivar(p: Proveedor) {
-    if (!confirm(`¿Desactivar el proveedor "${p.nombre}"?`)) return;
+    const ok = await confirmar({
+      titulo: "Desactivar proveedor",
+      mensaje: `¿Desactivar el proveedor "${p.nombre}"?`,
+      textoConfirmar: "Desactivar",
+      peligro: true,
+    });
+    if (!ok) return;
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/proveedores/${p.id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${getToken()}` },
     });
+    toast("Proveedor desactivado");
     cargar();
   }
 

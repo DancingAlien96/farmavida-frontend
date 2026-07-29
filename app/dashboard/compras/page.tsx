@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { getToken, getUser } from "@/lib/auth";
+import { toast } from "@/components/ui/toast";
+import { confirmar } from "@/components/ui/confirm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +30,7 @@ import {
   Eye,
   Ban,
   Trash2,
+  Pencil,
   CheckCircle2,
   XCircle,
   Truck,
@@ -42,6 +45,7 @@ interface CompraLista {
   observacion: string | null;
   proveedor: { id: number; nombre: string } | null;
   itemsCount: number;
+  resumen: { nombre: string; cantidad: number; unidad: string }[];
 }
 
 interface CompraDetalle {
@@ -56,6 +60,7 @@ interface CompraDetalle {
     cantidad: number;
     unidadNombre: string;
     unidadEquivale: number;
+    fechaVencimiento: string | null;
     precioCosto: string;
     subtotal: number;
     producto: {
@@ -115,8 +120,9 @@ export default function ComprasPage() {
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [productos, setProductos] = useState<ProductoLista[]>([]);
 
-  // Modal nueva compra
+  // Modal nueva compra / editar
   const [newOpen, setNewOpen] = useState(false);
+  const [editandoId, setEditandoId] = useState<number | null>(null);
   const [proveedorId, setProveedorId] = useState("");
   const [fechaCompra, setFechaCompra] = useState(new Date().toISOString().slice(0, 10));
   const [observacion, setObservacion] = useState("");
@@ -162,11 +168,14 @@ export default function ComprasPage() {
     });
   }, []);
 
-  const comprasFiltradas = compras.filter(
-    (c) =>
-      (c.proveedor?.nombre ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
-      String(c.id).includes(busqueda)
-  );
+  const comprasFiltradas = compras.filter((c) => {
+    const q = busqueda.toLowerCase();
+    return (
+      (c.proveedor?.nombre ?? "").toLowerCase().includes(q) ||
+      String(c.id).includes(busqueda) ||
+      c.resumen.some((r) => r.nombre.toLowerCase().includes(q))
+    );
+  });
 
   // Stats
   const inicioMes = new Date();
@@ -180,11 +189,43 @@ export default function ComprasPage() {
   const anuladas = compras.filter((c) => c.estado === "ANULADA").length;
 
   function abrirNueva() {
+    setEditandoId(null);
     setProveedorId("");
     setFechaCompra(new Date().toISOString().slice(0, 10));
     setObservacion("");
     setItems([{ ...EMPTY_ITEM }]);
     setError("");
+    setNewOpen(true);
+  }
+
+  async function abrirEditar(id: number) {
+    setError("");
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/compras/${id}`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (!res.ok) {
+      toast("No se pudo cargar la compra.", "error");
+      return;
+    }
+    const c: CompraDetalle = await res.json();
+    setEditandoId(id);
+    setProveedorId(c.proveedor ? String(c.proveedor.id) : "");
+    setFechaCompra(c.fecha.slice(0, 10));
+    setObservacion(c.observacion ?? "");
+    setItems(
+      c.detalles.map((d) => {
+        // Reconstruye la forma de compra (unidadVentaId) desde el nombre guardado
+        const prod = productos.find((x) => x.id === d.producto.id);
+        const unidad = prod?.unidadesVenta.find((u) => u.nombre === d.unidadNombre);
+        return {
+          productoId: String(d.producto.id),
+          unidadVentaId: unidad ? String(unidad.id) : "",
+          cantidad: String(d.cantidad),
+          precioCosto: d.precioCosto,
+          fechaVencimiento: d.fechaVencimiento ? d.fechaVencimiento.slice(0, 10) : "",
+        };
+      })
+    );
     setNewOpen(true);
   }
 
@@ -242,8 +283,12 @@ export default function ComprasPage() {
 
     setGuardando(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/compras`, {
-        method: "POST",
+      const editando = editandoId !== null;
+      const url = editando
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/compras/${editandoId}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/compras`;
+      const res = await fetch(url, {
+        method: editando ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${getToken()}`,
@@ -262,11 +307,12 @@ export default function ComprasPage() {
         }),
       });
       if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Error al registrar la compra.");
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Error al guardar la compra.");
         return;
       }
       setNewOpen(false);
+      toast(editando ? "Compra actualizada" : "Compra registrada");
       cargarCompras();
     } finally {
       setGuardando(false);
@@ -288,7 +334,13 @@ export default function ComprasPage() {
   }
 
   async function anular(id: number) {
-    if (!confirm("¿Anular esta compra? Se restará del stock lo que había entrado con ella.")) return;
+    const ok = await confirmar({
+      titulo: "Anular compra",
+      mensaje: "Se restará del stock lo que había entrado con esta compra. ¿Continuar?",
+      textoConfirmar: "Anular",
+      peligro: true,
+    });
+    if (!ok) return;
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/compras/${id}/anular`,
       {
@@ -297,10 +349,32 @@ export default function ComprasPage() {
       }
     );
     if (!res.ok) {
-      const data = await res.json();
-      alert(data.error || "No se pudo anular.");
+      const data = await res.json().catch(() => ({}));
+      toast(data.error || "No se pudo anular.", "error");
       return;
     }
+    toast("Compra anulada");
+    cargarCompras();
+  }
+
+  async function eliminar(id: number) {
+    const ok = await confirmar({
+      titulo: "Eliminar registro",
+      mensaje: "Se eliminará el registro de esta compra anulada. No se puede deshacer.",
+      textoConfirmar: "Eliminar",
+      peligro: true,
+    });
+    if (!ok) return;
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/compras/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast(data.error || "No se pudo eliminar.", "error");
+      return;
+    }
+    toast("Compra eliminada");
     cargarCompras();
   }
 
@@ -380,7 +454,7 @@ export default function ComprasPage() {
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Buscar por proveedor o #..."
+                placeholder="Buscar por producto, proveedor o #..."
                 className="pl-9 h-9 text-sm"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
@@ -406,8 +480,7 @@ export default function ComprasPage() {
                   <TableRow className="bg-gray-50">
                     <TableHead className="text-xs font-semibold text-gray-500 uppercase">#</TableHead>
                     <TableHead className="text-xs font-semibold text-gray-500 uppercase">Fecha</TableHead>
-                    <TableHead className="text-xs font-semibold text-gray-500 uppercase">Proveedor</TableHead>
-                    <TableHead className="text-xs font-semibold text-gray-500 uppercase text-center">Items</TableHead>
+                    <TableHead className="text-xs font-semibold text-gray-500 uppercase">Se compró</TableHead>
                     <TableHead className="text-xs font-semibold text-gray-500 uppercase text-right">Total</TableHead>
                     <TableHead className="text-xs font-semibold text-gray-500 uppercase text-center">Estado</TableHead>
                     <TableHead className="text-xs font-semibold text-gray-500 uppercase text-right">Acciones</TableHead>
@@ -424,13 +497,27 @@ export default function ComprasPage() {
                           year: "numeric",
                         })}
                       </TableCell>
-                      <TableCell className="text-sm font-medium text-gray-900">
-                        {c.proveedor?.nombre ?? (
-                          <span className="text-gray-400 font-normal">Sin proveedor</span>
+                      <TableCell className="text-sm text-gray-700 max-w-xs">
+                        {c.resumen.length === 0 ? (
+                          <span className="text-gray-300">—</span>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-1">
+                            {c.resumen.slice(0, 3).map((r, i) => (
+                              <span
+                                key={i}
+                                className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full"
+                              >
+                                <span className="font-semibold text-[#1e3a5f]">{r.cantidad}</span>
+                                <span className="truncate max-w-[140px]">{r.nombre}</span>
+                              </span>
+                            ))}
+                            {c.resumen.length > 3 && (
+                              <span className="text-xs text-gray-400">
+                                +{c.resumen.length - 3} más
+                              </span>
+                            )}
+                          </div>
                         )}
-                      </TableCell>
-                      <TableCell className="text-center text-sm text-gray-600">
-                        {c.itemsCount}
                       </TableCell>
                       <TableCell className="text-right font-semibold text-gray-900 text-sm">
                         Q {parseFloat(c.total).toFixed(2)}
@@ -455,11 +542,33 @@ export default function ComprasPage() {
                             <Button
                               size="sm"
                               variant="ghost"
+                              title="Editar"
+                              className="h-8 w-8 p-0 text-gray-400 hover:text-[#1e3a5f] hover:bg-[#1e3a5f]/10"
+                              onClick={() => abrirEditar(c.id)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {isAdmin && c.estado === "RECIBIDA" && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
                               title="Anular"
                               className="h-8 w-8 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
                               onClick={() => anular(c.id)}
                             >
                               <Ban className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {isAdmin && c.estado === "ANULADA" && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title="Eliminar registro"
+                              className="h-8 w-8 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                              onClick={() => eliminar(c.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           )}
                         </div>
@@ -480,7 +589,7 @@ export default function ComprasPage() {
             <DialogHeader className="pb-2 border-b border-gray-100">
               <DialogTitle className="text-[#1e3a5f] flex items-center gap-2">
                 <ShoppingBag className="h-5 w-5" />
-                Nueva compra
+                {editandoId !== null ? `Editar compra #${editandoId}` : "Nueva compra"}
               </DialogTitle>
             </DialogHeader>
 
@@ -721,7 +830,7 @@ export default function ComprasPage() {
                 className="bg-[#1e3a5f] hover:bg-[#162d4a] text-white gap-2"
               >
                 {guardando && <Loader2 className="h-4 w-4 animate-spin" />}
-                Registrar compra
+                {editandoId !== null ? "Guardar cambios" : "Registrar compra"}
               </Button>
             </DialogFooter>
           </DialogContent>

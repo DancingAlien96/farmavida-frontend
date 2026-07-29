@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { getToken, getUser } from "@/lib/auth";
+import { toast } from "@/components/ui/toast";
+import { confirmar } from "@/components/ui/confirm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -245,11 +247,17 @@ export default function UsuariosTab() {
 
   async function alternarActivo(u: Usuario) {
     if (u.id === yoId) {
-      alert("No puedes desactivar tu propia cuenta.");
+      toast("No puedes desactivar tu propia cuenta.", "error");
       return;
     }
     const accion = u.activo ? "desactivar" : "activar";
-    if (!confirm(`¿Deseas ${accion} a ${u.email}?`)) return;
+    const ok = await confirmar({
+      titulo: `${u.activo ? "Desactivar" : "Activar"} usuario`,
+      mensaje: `¿Deseas ${accion} a ${u.email}?`,
+      textoConfirmar: u.activo ? "Desactivar" : "Activar",
+      peligro: u.activo,
+    });
+    if (!ok) return;
 
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/usuarios/${u.id}`, {
       method: "PATCH",
@@ -259,6 +267,7 @@ export default function UsuariosTab() {
       },
       body: JSON.stringify({ activo: !u.activo }),
     });
+    toast(`Usuario ${u.activo ? "desactivado" : "activado"}`);
     cargarUsuarios();
   }
 

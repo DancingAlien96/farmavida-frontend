@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { getToken } from "@/lib/auth";
+import { toast } from "@/components/ui/toast";
+import { confirmar } from "@/components/ui/confirm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -123,16 +125,23 @@ export default function LaboratoriosTab() {
   }
 
   async function eliminar(l: Laboratorio) {
-    if (!confirm(`¿Eliminar el laboratorio "${l.nombre}"?`)) return;
+    const ok = await confirmar({
+      titulo: "Eliminar laboratorio",
+      mensaje: `¿Eliminar el laboratorio "${l.nombre}"?`,
+      textoConfirmar: "Eliminar",
+      peligro: true,
+    });
+    if (!ok) return;
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/laboratorios/${l.id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${getToken()}` },
     });
     if (!res.ok) {
-      const data = await res.json();
-      alert(data.error || "No se pudo eliminar.");
+      const data = await res.json().catch(() => ({}));
+      toast(data.error || "No se pudo eliminar.", "error");
       return;
     }
+    toast("Laboratorio eliminado");
     cargar();
   }
 

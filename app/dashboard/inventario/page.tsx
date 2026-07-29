@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { getToken, getUser } from "@/lib/auth";
+import { toast } from "@/components/ui/toast";
+import { confirmar } from "@/components/ui/confirm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -369,11 +371,18 @@ export default function InventarioPage() {
   }
 
   async function eliminar(id: number) {
-    if (!confirm("¿Eliminar este producto del inventario?")) return;
+    const ok = await confirmar({
+      titulo: "Eliminar producto",
+      mensaje: "El producto se quitará del inventario. ¿Continuar?",
+      textoConfirmar: "Eliminar",
+      peligro: true,
+    });
+    if (!ok) return;
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/productos/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${getToken()}` },
     });
+    toast("Producto eliminado");
     cargarProductos();
   }
 

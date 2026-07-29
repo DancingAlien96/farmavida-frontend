@@ -1,8 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Search, Loader2, Package, ChevronRight, Sparkles } from "lucide-react";
+import { Search, Loader2, Package, ChevronRight, Sparkles, Info } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export interface UnidadVentaResumen {
@@ -17,7 +25,10 @@ export interface ProductoResumen {
   nombre: string;
   codigoBarras: string | null;
   presentacion: string | null;
+  concentracion: string | null;
   descripcion: string | null;
+  requiereReceta: boolean;
+  fechaVencimiento: string | null;
   unidadBase: string;
   precioVenta: string;
   stock: number;
@@ -56,6 +67,8 @@ export function BuscadorProducto({
   const [abierto, setAbierto] = useState(false);
   // Producto cuyas formas de venta se están mostrando
   const [expandido, setExpandido] = useState<number | null>(null);
+  // Producto en la vista rápida de detalles
+  const [detalle, setDetalle] = useState<ProductoResumen | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   const q = norm(query.trim());
@@ -178,7 +191,20 @@ export function BuscadorProducto({
                           )}
                         </div>
                       </div>
-                      <div className="text-right shrink-0 flex items-center gap-2">
+                      <div className="text-right shrink-0 flex items-center gap-1.5">
+                        {/* Vista rápida de detalles (no agrega al carrito) */}
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          title="Ver detalles"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDetalle(p);
+                          }}
+                          className="p-1.5 rounded-md text-gray-300 hover:text-[#29abe2] hover:bg-[#29abe2]/10 transition-colors"
+                        >
+                          <Info className="h-4 w-4" />
+                        </span>
                         <div>
                           <p className="font-bold text-[#1e3a5f] text-sm">
                             Q {parseFloat(p.precioVenta).toFixed(2)}
@@ -261,6 +287,112 @@ export function BuscadorProducto({
           )}
         </div>
       )}
+
+      {/* ── Vista rápida de detalles del producto ── */}
+      <Dialog open={!!detalle} onOpenChange={(o) => !o && setDetalle(null)}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pb-2 border-b border-gray-100">
+            <DialogTitle className="text-[#1e3a5f]">Detalle del producto</DialogTitle>
+          </DialogHeader>
+
+          {detalle && (
+            <div className="space-y-4 py-1">
+              {/* Imagen */}
+              <div className="w-full h-44 rounded-xl border border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center">
+                {detalle.imagen ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={detalle.imagen} alt={detalle.nombre} className="h-full w-full object-contain" />
+                ) : (
+                  <Package className="h-10 w-10 text-gray-300" />
+                )}
+              </div>
+
+              {/* Nombre + badges */}
+              <div>
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="text-lg font-bold text-gray-900">{detalle.nombre}</h3>
+                  {detalle.categoria && (
+                    <span className="text-xs bg-[#1e3a5f]/10 text-[#1e3a5f] px-2 py-0.5 rounded-full font-medium shrink-0">
+                      {detalle.categoria.nombre}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {[detalle.presentacion, detalle.concentracion].filter(Boolean).join(" · ") || "Sin presentación"}
+                </p>
+                {detalle.requiereReceta && (
+                  <span className="inline-block mt-2 text-xs font-medium text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
+                    Requiere receta médica
+                  </span>
+                )}
+              </div>
+
+              {/* Para qué sirve */}
+              {detalle.descripcion && (
+                <div className="rounded-lg bg-[#4a8c3e]/8 border border-[#4a8c3e]/15 px-3 py-2.5">
+                  <p className="text-xs font-semibold text-[#4a8c3e] uppercase tracking-wide mb-0.5">Para qué sirve</p>
+                  <p className="text-sm text-gray-700 leading-relaxed">{detalle.descripcion}</p>
+                </div>
+              )}
+
+              {/* Formas de venta y qué alcanza */}
+              <div className="border-t border-gray-100 pt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Precios y stock</p>
+                  <p className="text-sm font-bold text-gray-900">
+                    {detalle.stock} {(detalle.unidadBase || "unidad").toLowerCase()}s
+                  </p>
+                </div>
+                <div className="space-y-1 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">1 {detalle.unidadBase} · suelta</span>
+                    <span className="font-semibold text-[#1e3a5f]">Q {parseFloat(detalle.precioVenta).toFixed(2)}</span>
+                  </div>
+                  {[...detalle.unidadesVenta]
+                    .sort((a, b) => b.equivale - a.equivale)
+                    .map((u) => {
+                      const completos = Math.floor(detalle.stock / u.equivale);
+                      return (
+                        <div key={u.id} className="flex items-center justify-between">
+                          <span className="text-gray-600">
+                            1 {u.nombre}
+                            <span className="text-gray-400 text-xs"> · {u.equivale} {(detalle.unidadBase || "unidad").toLowerCase()}s</span>
+                            {completos > 0 ? (
+                              <span className="text-gray-400 text-xs"> · alcanza {completos}</span>
+                            ) : (
+                              <span className="text-red-400 text-xs"> · no alcanza</span>
+                            )}
+                          </span>
+                          <span className="font-semibold text-[#1e3a5f]">Q {parseFloat(u.precio).toFixed(2)}</span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* Datos extra */}
+              <div className="grid grid-cols-2 gap-3 border-t border-gray-100 pt-3 text-sm">
+                <div>
+                  <p className="text-xs text-gray-400">Vencimiento más próximo</p>
+                  <p className="font-medium text-gray-800">
+                    {detalle.fechaVencimiento
+                      ? new Date(detalle.fechaVencimiento).toLocaleDateString("es-GT", { day: "2-digit", month: "short", year: "numeric" })
+                      : "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Código de barras</p>
+                  <p className="font-medium text-gray-800">{detalle.codigoBarras || "—"}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetalle(null)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

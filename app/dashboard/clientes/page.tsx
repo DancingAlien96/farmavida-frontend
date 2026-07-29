@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { getToken, getUser } from "@/lib/auth";
+import { toast } from "@/components/ui/toast";
+import { confirmar } from "@/components/ui/confirm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -173,11 +175,18 @@ export default function ClientesPage() {
   }
 
   async function eliminar(c: Cliente) {
-    if (!confirm(`¿Eliminar al cliente "${c.nombres} ${c.apellidos}" de la lista?`)) return;
+    const ok = await confirmar({
+      titulo: "Eliminar cliente",
+      mensaje: `Se quitará a "${c.nombres} ${c.apellidos}" de la lista. ¿Continuar?`,
+      textoConfirmar: "Eliminar",
+      peligro: true,
+    });
+    if (!ok) return;
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/clientes/${c.id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${getToken()}` },
     });
+    toast("Cliente eliminado");
     cargar();
   }
 
