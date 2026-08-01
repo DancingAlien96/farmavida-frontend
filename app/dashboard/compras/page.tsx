@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getToken, getUser } from "@/lib/auth";
 import { toast } from "@/components/ui/toast";
 import { confirmar } from "@/components/ui/confirm";
+import { SelectorProducto } from "@/components/compras/SelectorProducto";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -82,6 +83,7 @@ interface ProductoLista {
   id: number;
   nombre: string;
   presentacion: string | null;
+  imagen: string | null;
   unidadBase: string;
   unidadesVenta: { id: number; nombre: string; equivale: number }[];
 }
@@ -686,18 +688,11 @@ export default function ComprasPage() {
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="flex-1">
                             <label className="text-xs font-medium text-gray-500 mb-1 block">Producto *</label>
-                            <select
+                            <SelectorProducto
+                              productos={productos}
                               value={it.productoId}
-                              onChange={(e) => actualizarItem(idx, "productoId", e.target.value)}
-                              className="w-full h-9 px-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#29abe2]/40"
-                            >
-                              <option value="">-- Elegir producto --</option>
-                              {productos.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                  {p.nombre}{p.presentacion ? ` · ${p.presentacion}` : ""}
-                                </option>
-                              ))}
-                            </select>
+                              onChange={(id) => actualizarItem(idx, "productoId", id)}
+                            />
                           </div>
                           <Button
                             size="sm"

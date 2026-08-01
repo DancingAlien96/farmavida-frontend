@@ -301,8 +301,14 @@ export default function InventarioPage() {
   }
 
   async function guardar() {
-    if (!form.nombre || !form.precioVenta) {
-      setError("El nombre y el precio de venta son obligatorios.");
+    if (!form.nombre.trim()) {
+      setError("El nombre es obligatorio.");
+      return;
+    }
+    // El precio de la unidad base admite 0 = "no se vende suelta".
+    const precioBase = parseFloat(form.precioVenta);
+    if (form.precioVenta === "" || !Number.isFinite(precioBase) || precioBase < 0) {
+      setError("El precio de venta no es válido.");
       return;
     }
 
@@ -323,6 +329,17 @@ export default function InventarioPage() {
         setError(`"${u.nombre}": falta el precio.`);
         return;
       }
+    }
+
+    // Con "precio 0 = no se vende así", debe quedar al menos una presentación
+    // vendible (la unidad base o alguna forma con precio mayor a 0).
+    const hayVendible =
+      precioBase > 0 || form.unidades.some((u) => parseFloat(u.precio) > 0);
+    if (!hayVendible) {
+      setError(
+        "El producto debe venderse en al menos una presentación con precio. Un precio de 0 significa que no se vende en esa presentación."
+      );
+      return;
     }
 
     setGuardando(true);
@@ -968,7 +985,8 @@ export default function InventarioPage() {
                       />
                     </div>
                     <p className="text-xs text-gray-400 mt-1">
-                      Precio al público de <strong>una</strong> {form.unidadBase.trim().toLowerCase() || "unidad"}
+                      Precio al público de <strong>una</strong> {form.unidadBase.trim().toLowerCase() || "unidad"}.
+                      Pon <strong>0</strong> si no se vende suelta (solo por blíster o caja).
                     </p>
                   </div>
                   <div>
