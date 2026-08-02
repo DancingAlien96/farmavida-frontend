@@ -498,7 +498,7 @@ export default function InventarioPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-gray-50">
-                    <TableHead className="text-xs font-semibold text-gray-500 uppercase">Producto</TableHead>
+                    <TableHead className="text-xs font-semibold text-gray-500 uppercase w-[280px]">Producto</TableHead>
                     <TableHead className="text-xs font-semibold text-gray-500 uppercase">Categoría</TableHead>
                     <TableHead className="text-xs font-semibold text-gray-500 uppercase text-right">Precio</TableHead>
                     <TableHead className="text-xs font-semibold text-gray-500 uppercase text-center">Stock</TableHead>
@@ -513,7 +513,7 @@ export default function InventarioPage() {
                     const IconEstado = estado.icon;
                     return (
                       <TableRow key={p.id} className="hover:bg-gray-50 transition-colors">
-                        <TableCell>
+                        <TableCell className="max-w-[280px]">
                           <div className="flex items-center gap-3">
                             <div className="h-10 w-10 shrink-0 rounded-md border border-gray-100 bg-gray-50 overflow-hidden flex items-center justify-center">
                               {p.imagen ? (
@@ -524,8 +524,8 @@ export default function InventarioPage() {
                               )}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-medium text-gray-900 text-sm">{p.nombre}</p>
-                              <p className="text-xs text-gray-400 mt-0.5">
+                              <p className="font-medium text-gray-900 text-sm truncate" title={p.nombre}>{p.nombre}</p>
+                              <p className="text-xs text-gray-400 mt-0.5 truncate">
                                 {[p.presentacion, p.concentracion].filter(Boolean).join(" · ")}
                                 {p.requiereReceta && (
                                   <span className="ml-2 text-purple-600 font-medium">Receta</span>
