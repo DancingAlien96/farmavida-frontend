@@ -97,6 +97,21 @@ interface Producto {
   unidadesVenta: UnidadVenta[];
 }
 
+/**
+ * Presentaciones en las que el producto SÍ se vende: las que tienen precio > 0.
+ * Un precio de 0 significa "no se vende así", así que no se muestra en la tabla.
+ */
+function preciosVendibles(p: Producto): { nombre: string; precio: number }[] {
+  const items: { nombre: string; precio: number }[] = [];
+  const base = parseFloat(p.precioVenta);
+  if (base > 0) items.push({ nombre: p.unidadBase || "Unidad", precio: base });
+  for (const u of p.unidadesVenta ?? []) {
+    const precio = parseFloat(u.precio);
+    if (precio > 0) items.push({ nombre: u.nombre, precio });
+  }
+  return items;
+}
+
 // Fila editable de "forma de venta" en el formulario
 interface UnidadForm {
   nombre: string;
@@ -500,7 +515,7 @@ export default function InventarioPage() {
                   <TableRow className="bg-gray-50">
                     <TableHead className="text-xs font-semibold text-gray-500 uppercase w-[280px]">Producto</TableHead>
                     <TableHead className="text-xs font-semibold text-gray-500 uppercase">Categoría</TableHead>
-                    <TableHead className="text-xs font-semibold text-gray-500 uppercase text-right">Precio</TableHead>
+                    <TableHead className="text-xs font-semibold text-gray-500 uppercase text-right">Precios</TableHead>
                     <TableHead className="text-xs font-semibold text-gray-500 uppercase text-center">Stock</TableHead>
                     <TableHead className="text-xs font-semibold text-gray-500 uppercase text-center">Estado</TableHead>
                     <TableHead className="text-xs font-semibold text-gray-500 uppercase">Vencimiento</TableHead>
@@ -543,8 +558,22 @@ export default function InventarioPage() {
                             <span className="text-xs text-gray-300">Sin categoría</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right font-semibold text-gray-900 text-sm">
-                          Q {parseFloat(p.precioVenta).toFixed(2)}
+                        <TableCell className="text-right text-sm">
+                          {(() => {
+                            const precios = preciosVendibles(p);
+                            if (precios.length === 0)
+                              return <span className="text-gray-300">—</span>;
+                            return (
+                              <div className="flex flex-col items-end gap-0.5">
+                                {precios.map((pr) => (
+                                  <span key={pr.nombre} className="whitespace-nowrap leading-tight">
+                                    <span className="text-gray-400 text-xs mr-1 capitalize">{pr.nombre}</span>
+                                    <span className="font-semibold text-gray-900">Q {pr.precio.toFixed(2)}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell className="text-center">
                           <span className={`font-bold text-sm ${p.stock === 0 ? "text-red-600" : p.stock <= p.stockMinimo ? "text-yellow-600" : "text-gray-900"}`}>
